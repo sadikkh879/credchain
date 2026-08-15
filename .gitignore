@@ -1,0 +1,15 @@
+node_modules
+.env
+artifacts
+cache
+*.env
+# Hardhat build output
+blockchain/artifacts/
+blockchain/cache/
+
+# React build output
+frontend/build/
+
+# OS junk
+.DS_Store
+Thumbs.db
