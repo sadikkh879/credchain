@@ -9,9 +9,19 @@
 //  implement. Keep the signatures identical.
 // ============================================================
 
-export const CONTRACT_ADDRESS = "0x3334e49F28231e1406d930B6d348a6FbdbA572c0";; // <- paste deployed address
+export const CONTRACT_ADDRESS = "0x3334e49F28231e1406d930B6d348a6FbdbA572c0";
 
 export const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
+
+// Public Sepolia RPC endpoints used for read-only verification, so a client
+// can verify a certificate (e.g. after scanning its QR code on a phone)
+// without installing MetaMask. Tried in order; the next one is used if one fails.
+// Optionally set REACT_APP_SEPOLIA_RPC_URL (e.g. an Alchemy or Infura URL) at build time.
+export const SEPOLIA_RPC_URLS = [
+  process.env.REACT_APP_SEPOLIA_RPC_URL,
+  "https://ethereum-sepolia-rpc.publicnode.com",
+  "https://1rpc.io/sepolia",
+].filter(Boolean);
 
 export const CONTRACT_ABI = [
   // ---- Read ----

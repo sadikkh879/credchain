@@ -1,0 +1,486 @@
+From fbf165668e063909c4bef75fb03e3aa72fb1c187 Mon Sep 17 00:00:00 2001
+From: CredChain <dev@local>
+Date: Fri, 2 Oct 2026 19:17:38 +0000
+Subject: [PATCH] Add QR code verification and wallet-free verification (v1.1)
+
+---
+ README.md                                 | 10 +++++
+ frontend/package-lock.json                | 17 ++++++++
+ frontend/package.json                     |  2 +
+ frontend/src/components/CertificateQR.js  | 30 +++++++++++++
+ frontend/src/components/QrScanner.js      | 41 ++++++++++++++++++
+ frontend/src/context/Web3Context.js       | 19 ++++++---
+ frontend/src/contracts/config.js          | 12 +++++-
+ frontend/src/index.css                    | 10 +++++
+ frontend/src/pages/FreelancerDashboard.js | 13 ++++--
+ frontend/src/pages/InstituteDashboard.js  | 21 +++++++--
+ frontend/src/pages/VerifyPage.js          | 52 ++++++++++++++---------
+ frontend/src/utils.js                     | 17 ++++++++
+ 12 files changed, 209 insertions(+), 35 deletions(-)
+ create mode 100644 frontend/src/components/CertificateQR.js
+ create mode 100644 frontend/src/components/QrScanner.js
+
+diff --git a/README.md b/README.md
+index d453e6e..e8331b8 100644
+--- a/README.md
++++ b/README.md
+@@ -80,3 +80,13 @@ Notes:
+ 3. Confirm the MetaMask transaction (free Sepolia test ETH).
+ 4. Freelancer connects their wallet → sees the certificate → copies the share link.
+ 5. Client opens the link → instant on-chain verification, no wallet account needed.
++
++## QR verification (v1.1)
++
++- Every certificate has a QR code that encodes its public verification link (`/?id=<certId>`).
++- Institutes generate the QR from the certificate ID in the issuance form and place it on the
++  certificate **before** uploading the final file to IPFS, so the on-chain hash covers the QR.
++- Freelancers can show or download the QR for each certificate on **My certificates**.
++- Verifiers scan it with a phone camera (opens the link directly) or with **Scan QR code** on the
++  verification page. Verification reads the contract through public Sepolia RPC endpoints, so no
++  MetaMask or account is needed. Set `REACT_APP_SEPOLIA_RPC_URL` to use your own RPC endpoint.
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index 5873171..3a772e9 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -9,6 +9,8 @@
+       "version": "1.0.0",
+       "dependencies": {
+         "ethers": "^6.13.0",
++        "html5-qrcode": "^2.3.8",
++        "qrcode.react": "^4.2.0",
+         "react": "^18.3.1",
+         "react-dom": "^18.3.1",
+         "react-router-dom": "^6.26.0",
+@@ -9103,6 +9105,12 @@
+         }
+       }
+     },
++    "node_modules/html5-qrcode": {
++      "version": "2.3.8",
++      "resolved": "https://registry.npmjs.org/html5-qrcode/-/html5-qrcode-2.3.8.tgz",
++      "integrity": "sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/htmlparser2": {
+       "version": "6.1.0",
+       "resolved": "https://registry.npmjs.org/htmlparser2/-/htmlparser2-6.1.0.tgz",
+@@ -13784,6 +13792,15 @@
+         "teleport": ">=0.2.0"
+       }
+     },
++    "node_modules/qrcode.react": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmjs.org/qrcode.react/-/qrcode.react-4.2.0.tgz",
++      "integrity": "sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==",
++      "license": "ISC",
++      "peerDependencies": {
++        "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
++      }
++    },
+     "node_modules/qs": {
+       "version": "6.15.3",
+       "resolved": "https://registry.npmjs.org/qs/-/qs-6.15.3.tgz",
+diff --git a/frontend/package.json b/frontend/package.json
+index 3e1ba40..62c05e9 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -4,6 +4,8 @@
+   "private": true,
+   "dependencies": {
+     "ethers": "^6.13.0",
++    "html5-qrcode": "^2.3.8",
++    "qrcode.react": "^4.2.0",
+     "react": "^18.3.1",
+     "react-dom": "^18.3.1",
+     "react-router-dom": "^6.26.0",
+diff --git a/frontend/src/components/CertificateQR.js b/frontend/src/components/CertificateQR.js
+new file mode 100644
+index 0000000..d24ec55
+--- /dev/null
++++ b/frontend/src/components/CertificateQR.js
+@@ -0,0 +1,30 @@
++import React, { useRef } from "react";
++import { QRCodeCanvas } from "qrcode.react";
++import { verifyUrl } from "../utils";
++
++// QR code that opens the public verification page for one certificate.
++// Error-correction level H keeps it readable when printed small or partly covered.
++export default function CertificateQR({ certId, size = 168 }) {
++  const wrapRef = useRef(null);
++  const link = verifyUrl(certId);
++
++  const download = () => {
++    const canvas = wrapRef.current?.querySelector("canvas");
++    if (!canvas) return;
++    const a = document.createElement("a");
++    a.href = canvas.toDataURL("image/png");
++    a.download = `${certId.trim()}-qr.png`;
++    a.click();
++  };
++
++  return (
++    <div className="qr-box">
++      <div ref={wrapRef} className="qr-canvas">
++        <QRCodeCanvas value={link} size={size} level="H" marginSize={2} />
++      </div>
++      <p className="mono muted qr-id">{certId.trim()}</p>
++      <p className="muted qr-link">{link}</p>
++      <button type="button" className="btn btn-ghost btn-sm" onClick={download}>Download QR (PNG)</button>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/QrScanner.js b/frontend/src/components/QrScanner.js
+new file mode 100644
+index 0000000..0804a78
+--- /dev/null
++++ b/frontend/src/components/QrScanner.js
+@@ -0,0 +1,41 @@
++import React, { useEffect, useRef, useState } from "react";
++import { Html5Qrcode } from "html5-qrcode";
++
++// Camera-based QR scanner for verifiers on a laptop or phone browser.
++// Phone users can also simply scan with the camera app, which opens the link directly.
++export default function QrScanner({ onResult, onClose }) {
++  const scannerRef = useRef(null);
++  const [error, setError] = useState("");
++  const regionId = "qr-reader-region";
++
++  useEffect(() => {
++    const scanner = new Html5Qrcode(regionId);
++    scannerRef.current = scanner;
++    let done = false;
++
++    scanner
++      .start(
++        { facingMode: "environment" },
++        { fps: 10, qrbox: { width: 230, height: 230 } },
++        (decodedText) => {
++          if (done) return;
++          done = true;
++          scanner.stop().catch(() => {}).finally(() => onResult(decodedText));
++        },
++        () => {} // ignore frames without a QR code
++      )
++      .catch(() => setError("Could not open the camera. Allow camera access, or type the certificate ID instead."));
++
++    return () => {
++      if (scanner.isScanning) scanner.stop().catch(() => {});
++    };
++  }, [onResult]);
++
++  return (
++    <div className="card qr-scanner">
++      <div id={regionId} className="qr-region" />
++      {error && <div className="alert alert-error">{error}</div>}
++      <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Cancel scan</button>
++    </div>
++  );
++}
+diff --git a/frontend/src/context/Web3Context.js b/frontend/src/context/Web3Context.js
+index 2ce7a6a..56c14cf 100644
+--- a/frontend/src/context/Web3Context.js
++++ b/frontend/src/context/Web3Context.js
+@@ -1,6 +1,6 @@
+ import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+-import { BrowserProvider, Contract } from "ethers";
+-import { CONTRACT_ADDRESS, CONTRACT_ABI, SEPOLIA_CHAIN_ID, ROLE_NAMES } from "../contracts/config";
++import { BrowserProvider, Contract, JsonRpcProvider, FallbackProvider, Network } from "ethers";
++import { CONTRACT_ADDRESS, CONTRACT_ABI, SEPOLIA_CHAIN_ID, SEPOLIA_RPC_URLS, ROLE_NAMES } from "../contracts/config";
+ 
+ const Web3Context = createContext(null);
+ export const useWeb3 = () => useContext(Web3Context);
+@@ -16,12 +16,19 @@ export function Web3Provider({ children }) {
+ 
+   const hasMetaMask = typeof window !== "undefined" && !!window.ethereum;
+ 
+-  // Read-only contract so clients can verify without connecting a wallet
++  // Read-only contract through public RPC endpoints, so clients can verify
++  // without MetaMask (for example on a phone after scanning a QR code)
+   useEffect(() => {
+-    if (!hasMetaMask) return;
+-    const provider = new BrowserProvider(window.ethereum);
++    const sepolia = Network.from(11155111);
++    const providers = SEPOLIA_RPC_URLS.map((url, i) => ({
++      provider: new JsonRpcProvider(url, sepolia, { staticNetwork: sepolia }),
++      priority: i + 1,
++      stallTimeout: 2500,
++      weight: 1,
++    }));
++    const provider = new FallbackProvider(providers, sepolia, { quorum: 1 });
+     setReadContract(new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider));
+-  }, [hasMetaMask]);
++  }, []);
+ 
+   const loadRole = useCallback(async (addr, c) => {
+     try {
+diff --git a/frontend/src/contracts/config.js b/frontend/src/contracts/config.js
+index ba3207f..81252ca 100644
+--- a/frontend/src/contracts/config.js
++++ b/frontend/src/contracts/config.js
+@@ -9,10 +9,20 @@
+ //  implement. Keep the signatures identical.
+ // ============================================================
+ 
+-export const CONTRACT_ADDRESS = "0x3334e49F28231e1406d930B6d348a6FbdbA572c0";; // <- paste deployed address
++export const CONTRACT_ADDRESS = "0x3334e49F28231e1406d930B6d348a6FbdbA572c0";
+ 
+ export const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
+ 
++// Public Sepolia RPC endpoints used for read-only verification, so a client
++// can verify a certificate (e.g. after scanning its QR code on a phone)
++// without installing MetaMask. Tried in order; the next one is used if one fails.
++// Optionally set REACT_APP_SEPOLIA_RPC_URL (e.g. an Alchemy or Infura URL) at build time.
++export const SEPOLIA_RPC_URLS = [
++  process.env.REACT_APP_SEPOLIA_RPC_URL,
++  "https://ethereum-sepolia-rpc.publicnode.com",
++  "https://1rpc.io/sepolia",
++].filter(Boolean);
++
+ export const CONTRACT_ABI = [
+   // ---- Read ----
+   "function admin() view returns (address)",
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index f83bbd1..6d99331 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -240,3 +240,13 @@ th { color: var(--slate); font-size: 0.8rem; text-transform: uppercase; letter-s
+ @media (prefers-reduced-motion: reduce) {
+   * { transition: none !important; animation: none !important; }
+ }
++
++/* QR code */
++.qr-box { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin-top: 0.9rem; }
++.qr-canvas { background: #fff; padding: 0.4rem; border: 1px solid var(--line); border-radius: 8px; line-height: 0; }
++.qr-id { margin: 0; }
++.qr-link { margin: 0; font-size: 0.78rem; word-break: break-all; }
++.qr-step { border: 1px dashed var(--line); border-radius: 8px; padding: 0.75rem 0.9rem; margin-bottom: 0.9rem; }
++.qr-step p { margin: 0; }
++.qr-scanner { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
++.qr-region { width: 100%; max-width: 360px; }
+diff --git a/frontend/src/pages/FreelancerDashboard.js b/frontend/src/pages/FreelancerDashboard.js
+index e515958..c73a4a2 100644
+--- a/frontend/src/pages/FreelancerDashboard.js
++++ b/frontend/src/pages/FreelancerDashboard.js
+@@ -1,12 +1,14 @@
+ import React, { useState, useEffect, useCallback } from "react";
+ import { useWeb3 } from "../context/Web3Context";
+-import { formatDate, ipfsUrl } from "../utils";
++import { formatDate, ipfsUrl, verifyUrl } from "../utils";
++import CertificateQR from "../components/CertificateQR";
+ 
+ export default function FreelancerDashboard() {
+   const { contract, account, role } = useWeb3();
+   const [certs, setCerts] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [copied, setCopied] = useState("");
++  const [qrFor, setQrFor] = useState("");
+ 
+   const load = useCallback(async () => {
+     if (!contract || !account) return;
+@@ -30,8 +32,7 @@ export default function FreelancerDashboard() {
+   useEffect(() => { load(); }, [load]);
+ 
+   const copyLink = (id) => {
+-    const link = `${window.location.origin}/?id=${encodeURIComponent(id)}`;
+-    navigator.clipboard.writeText(link);
++    navigator.clipboard.writeText(verifyUrl(id));
+     setCopied(id);
+     setTimeout(() => setCopied(""), 2000);
+   };
+@@ -43,7 +44,7 @@ export default function FreelancerDashboard() {
+   return (
+     <div className="page">
+       <h1>My certificates</h1>
+-      <p className="muted">Share a verification link with any client — they can check it instantly, no account needed.</p>
++      <p className="muted">Share a verification link or QR code with any client — they can check it instantly, no account needed.</p>
+ 
+       {loading ? (
+         <p className="muted">Loading your certificates…</p>
+@@ -69,12 +70,16 @@ export default function FreelancerDashboard() {
+                 <button className="btn btn-primary btn-sm" onClick={() => copyLink(c.id)}>
+                   {copied === c.id ? "Link copied ✔" : "Copy verification link"}
+                 </button>
++                <button className="btn btn-ghost btn-sm" onClick={() => setQrFor(qrFor === c.id ? "" : c.id)}>
++                  {qrFor === c.id ? "Hide QR code" : "Show QR code"}
++                </button>
+                 {c.ipfsCid && (
+                   <a className="btn btn-ghost btn-sm" href={ipfsUrl(c.ipfsCid)} target="_blank" rel="noreferrer">
+                     View file
+                   </a>
+                 )}
+               </div>
++              {qrFor === c.id && <CertificateQR certId={c.id} />}
+             </div>
+           );
+         })
+diff --git a/frontend/src/pages/InstituteDashboard.js b/frontend/src/pages/InstituteDashboard.js
+index c3d9098..382b58b 100644
+--- a/frontend/src/pages/InstituteDashboard.js
++++ b/frontend/src/pages/InstituteDashboard.js
+@@ -1,6 +1,7 @@
+ import React, { useState } from "react";
+ import { useWeb3 } from "../context/Web3Context";
+-import { hashFile } from "../utils";
++import { hashFile, verifyUrl } from "../utils";
++import CertificateQR from "../components/CertificateQR";
+ 
+ const emptyForm = {
+   certId: "",
+@@ -52,7 +53,7 @@ export default function InstituteDashboard() {
+       );
+       setMsg({ type: "warn", text: "Transaction sent — waiting for confirmation…" });
+       await tx.wait();
+-      setMsg({ type: "ok", text: `Certificate ${form.certId} issued. Share this verification link with the freelancer: ${window.location.origin}/?id=${encodeURIComponent(form.certId.trim())}` });
++      setMsg({ type: "ok", text: `Certificate ${form.certId} issued. Verification link: ${verifyUrl(form.certId)}` });
+       setForm(emptyForm);
+       setFile(null);
+       setFileHash("");
+@@ -86,8 +87,9 @@ export default function InstituteDashboard() {
+     <div className="page">
+       <h1>Institute panel</h1>
+       <p className="muted">
+-        Issue tamper-proof certificates. Upload the file to IPFS first (e.g. via Pinata), then paste
+-        the CID here — the file's SHA-256 hash is computed automatically in your browser.
++        Issue tamper-proof certificates. Enter the certificate ID first and place its QR code on the
++        certificate. Then upload the final file to IPFS (e.g. via Pinata) and paste the CID here; the
++        file's SHA-256 hash is computed automatically in your browser.
+       </p>
+ 
+       <div className="card">
+@@ -112,6 +114,17 @@ export default function InstituteDashboard() {
+           </div>
+         </div>
+ 
++        {form.certId.trim() && (
++          <div className="qr-step">
++            <p className="muted">
++              <strong>Step 1.</strong> Download this QR code and place it on the certificate <em>before</em> you
++              upload the file to IPFS and attach it below. The on-chain hash must be calculated from
++              the final file, including the QR code.
++            </p>
++            <CertificateQR certId={form.certId} size={140} />
++          </div>
++        )}
++
+         <div className="field">
+           <label>Freelancer wallet address</label>
+           <input placeholder="0x…" value={form.freelancerAddress} onChange={set("freelancerAddress")} />
+diff --git a/frontend/src/pages/VerifyPage.js b/frontend/src/pages/VerifyPage.js
+index 2e2f91b..7202211 100644
+--- a/frontend/src/pages/VerifyPage.js
++++ b/frontend/src/pages/VerifyPage.js
+@@ -1,11 +1,13 @@
+-import React, { useState, useEffect } from "react";
++import React, { useState, useEffect, useCallback } from "react";
+ import { useSearchParams } from "react-router-dom";
+ import { useWeb3 } from "../context/Web3Context";
+-import { hashFile, formatDate, ipfsUrl, shortAddress } from "../utils";
++import { hashFile, formatDate, ipfsUrl, shortAddress, extractCertId } from "../utils";
++import QrScanner from "../components/QrScanner";
+ 
+ export default function VerifyPage() {
+-  const { readContract, hasMetaMask } = useWeb3();
+-  const [params] = useSearchParams();
++  const { readContract } = useWeb3();
++  const [params, setParams] = useSearchParams();
++  const [scanning, setScanning] = useState(false);
+ 
+   const [certId, setCertId] = useState(params.get("id") || "");
+   const [file, setFile] = useState(null);
+@@ -41,10 +43,21 @@ export default function VerifyPage() {
+     }
+   };
+ 
+-  // Auto-verify when opened through a shared link (?id=CERT-...)
++  // Auto-verify when opened through a shared link or a scanned QR code (?id=CERT-...)
+   useEffect(() => {
+-    if (params.get("id") && readContract) verify(params.get("id"));
+-  }, [readContract]);
++    const id = params.get("id");
++    if (id && readContract) {
++      setCertId(id);
++      verify(id);
++    }
++  }, [readContract, params]); // eslint-disable-line react-hooks/exhaustive-deps
++
++  // A scanned QR code holds the full verification link; keep only the certificate ID
++  const handleScan = useCallback((text) => {
++    setScanning(false);
++    const id = extractCertId(text);
++    if (id) setParams({ id });
++  }, [setParams]);
+ 
+   const cert = result?.cert;
+   const revoked = cert?.isRevoked;
+@@ -56,19 +69,11 @@ export default function VerifyPage() {
+       <section className="hero">
+         <h1>Verify a freelancer's certificate</h1>
+         <p>
+-          Enter the certificate ID you received from a freelancer. The record is checked directly
+-          against the Ethereum blockchain — no account needed.
++          Scan the QR code on the certificate or enter its ID. The record is checked directly
++          against the Ethereum blockchain — no account or wallet needed.
+         </p>
+       </section>
+ 
+-      {!hasMetaMask && (
+-        <div className="alert alert-warn">
+-          A browser wallet (MetaMask) is required to read from the blockchain. Install it from{" "}
+-          <a href="https://metamask.io" target="_blank" rel="noreferrer">metamask.io</a> — you do
+-          not need to create an account or hold any funds to verify.
+-        </div>
+-      )}
+-
+       <div className="card">
+         <div className="field">
+           <label htmlFor="certId">Certificate ID</label>
+@@ -86,11 +91,18 @@ export default function VerifyPage() {
+           <input id="certFile" type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files[0] || null)} />
+         </div>
+ 
+-        <button className="btn btn-primary" onClick={() => verify(certId)} disabled={status === "loading" || !readContract}>
+-          {status === "loading" ? "Checking blockchain…" : "Verify certificate"}
+-        </button>
++        <div className="cert-actions">
++          <button className="btn btn-primary" onClick={() => verify(certId)} disabled={status === "loading" || !readContract}>
++            {status === "loading" ? "Checking blockchain…" : "Verify certificate"}
++          </button>
++          <button className="btn btn-ghost" onClick={() => setScanning(true)} disabled={scanning}>
++            Scan QR code
++          </button>
++        </div>
+       </div>
+ 
++      {scanning && <QrScanner onResult={handleScan} onClose={() => setScanning(false)} />}
++
+       {status === "notfound" && (
+         <div className="alert alert-error">
+           <strong>No match.</strong> No certificate with this ID exists on the blockchain. The
+diff --git a/frontend/src/utils.js b/frontend/src/utils.js
+index 875dabc..9385620 100644
+--- a/frontend/src/utils.js
++++ b/frontend/src/utils.js
+@@ -24,3 +24,20 @@ export function formatDate(unixSeconds) {
+ export function ipfsUrl(cid) {
+   return cid ? `https://gateway.pinata.cloud/ipfs/${cid}` : null;
+ }
++
++// Public verification link for a certificate; this is what the QR code encodes
++export function verifyUrl(certId) {
++  return `${window.location.origin}/?id=${encodeURIComponent(certId.trim())}`;
++}
++
++// Accepts either a full verification link (from a QR code) or a bare certificate ID
++export function extractCertId(text) {
++  const raw = (text || "").trim();
++  try {
++    const id = new URL(raw).searchParams.get("id");
++    if (id) return id.trim();
++  } catch {
++    // not a URL, treat as a plain ID
++  }
++  return raw;
++}
+-- 
+2.43.0
+

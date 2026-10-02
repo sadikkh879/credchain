@@ -80,3 +80,13 @@ Notes:
 3. Confirm the MetaMask transaction (free Sepolia test ETH).
 4. Freelancer connects their wallet → sees the certificate → copies the share link.
 5. Client opens the link → instant on-chain verification, no wallet account needed.
+
+## QR verification (v1.1)
+
+- Every certificate has a QR code that encodes its public verification link (`/?id=<certId>`).
+- Institutes generate the QR from the certificate ID in the issuance form and place it on the
+  certificate **before** uploading the final file to IPFS, so the on-chain hash covers the QR.
+- Freelancers can show or download the QR for each certificate on **My certificates**.
+- Verifiers scan it with a phone camera (opens the link directly) or with **Scan QR code** on the
+  verification page. Verification reads the contract through public Sepolia RPC endpoints, so no
+  MetaMask or account is needed. Set `REACT_APP_SEPOLIA_RPC_URL` to use your own RPC endpoint.

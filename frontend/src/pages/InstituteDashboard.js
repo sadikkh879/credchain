@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useWeb3 } from "../context/Web3Context";
-import { hashFile } from "../utils";
+import { hashFile, verifyUrl } from "../utils";
+import CertificateQR from "../components/CertificateQR";
 
 const emptyForm = {
   certId: "",
@@ -52,7 +53,7 @@ export default function InstituteDashboard() {
       );
       setMsg({ type: "warn", text: "Transaction sent — waiting for confirmation…" });
       await tx.wait();
-      setMsg({ type: "ok", text: `Certificate ${form.certId} issued. Share this verification link with the freelancer: ${window.location.origin}/?id=${encodeURIComponent(form.certId.trim())}` });
+      setMsg({ type: "ok", text: `Certificate ${form.certId} issued. Verification link: ${verifyUrl(form.certId)}` });
       setForm(emptyForm);
       setFile(null);
       setFileHash("");
@@ -86,8 +87,9 @@ export default function InstituteDashboard() {
     <div className="page">
       <h1>Institute panel</h1>
       <p className="muted">
-        Issue tamper-proof certificates. Upload the file to IPFS first (e.g. via Pinata), then paste
-        the CID here — the file's SHA-256 hash is computed automatically in your browser.
+        Issue tamper-proof certificates. Enter the certificate ID first and place its QR code on the
+        certificate. Then upload the final file to IPFS (e.g. via Pinata) and paste the CID here; the
+        file's SHA-256 hash is computed automatically in your browser.
       </p>
 
       <div className="card">
@@ -111,6 +113,17 @@ export default function InstituteDashboard() {
             <input placeholder="National ID or platform ID" value={form.freelancerId} onChange={set("freelancerId")} />
           </div>
         </div>
+
+        {form.certId.trim() && (
+          <div className="qr-step">
+            <p className="muted">
+              <strong>Step 1.</strong> Download this QR code and place it on the certificate <em>before</em> you
+              upload the file to IPFS and attach it below. The on-chain hash must be calculated from
+              the final file, including the QR code.
+            </p>
+            <CertificateQR certId={form.certId} size={140} />
+          </div>
+        )}
 
         <div className="field">
           <label>Freelancer wallet address</label>

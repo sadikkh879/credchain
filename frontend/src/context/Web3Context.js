@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { BrowserProvider, Contract } from "ethers";
-import { CONTRACT_ADDRESS, CONTRACT_ABI, SEPOLIA_CHAIN_ID, ROLE_NAMES } from "../contracts/config";
+import { BrowserProvider, Contract, JsonRpcProvider, FallbackProvider, Network } from "ethers";
+import { CONTRACT_ADDRESS, CONTRACT_ABI, SEPOLIA_CHAIN_ID, SEPOLIA_RPC_URLS, ROLE_NAMES } from "../contracts/config";
 
 const Web3Context = createContext(null);
 export const useWeb3 = () => useContext(Web3Context);
@@ -16,12 +16,19 @@ export function Web3Provider({ children }) {
 
   const hasMetaMask = typeof window !== "undefined" && !!window.ethereum;
 
-  // Read-only contract so clients can verify without connecting a wallet
+  // Read-only contract through public RPC endpoints, so clients can verify
+  // without MetaMask (for example on a phone after scanning a QR code)
   useEffect(() => {
-    if (!hasMetaMask) return;
-    const provider = new BrowserProvider(window.ethereum);
+    const sepolia = Network.from(11155111);
+    const providers = SEPOLIA_RPC_URLS.map((url, i) => ({
+      provider: new JsonRpcProvider(url, sepolia, { staticNetwork: sepolia }),
+      priority: i + 1,
+      stallTimeout: 2500,
+      weight: 1,
+    }));
+    const provider = new FallbackProvider(providers, sepolia, { quorum: 1 });
     setReadContract(new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider));
-  }, [hasMetaMask]);
+  }, []);
 
   const loadRole = useCallback(async (addr, c) => {
     try {

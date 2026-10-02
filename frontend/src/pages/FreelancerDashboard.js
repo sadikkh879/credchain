@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWeb3 } from "../context/Web3Context";
-import { formatDate, ipfsUrl } from "../utils";
+import { formatDate, ipfsUrl, verifyUrl } from "../utils";
+import CertificateQR from "../components/CertificateQR";
 
 export default function FreelancerDashboard() {
   const { contract, account, role } = useWeb3();
   const [certs, setCerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState("");
+  const [qrFor, setQrFor] = useState("");
 
   const load = useCallback(async () => {
     if (!contract || !account) return;
@@ -30,8 +32,7 @@ export default function FreelancerDashboard() {
   useEffect(() => { load(); }, [load]);
 
   const copyLink = (id) => {
-    const link = `${window.location.origin}/?id=${encodeURIComponent(id)}`;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(verifyUrl(id));
     setCopied(id);
     setTimeout(() => setCopied(""), 2000);
   };
@@ -43,7 +44,7 @@ export default function FreelancerDashboard() {
   return (
     <div className="page">
       <h1>My certificates</h1>
-      <p className="muted">Share a verification link with any client — they can check it instantly, no account needed.</p>
+      <p className="muted">Share a verification link or QR code with any client — they can check it instantly, no account needed.</p>
 
       {loading ? (
         <p className="muted">Loading your certificates…</p>
@@ -69,12 +70,16 @@ export default function FreelancerDashboard() {
                 <button className="btn btn-primary btn-sm" onClick={() => copyLink(c.id)}>
                   {copied === c.id ? "Link copied ✔" : "Copy verification link"}
                 </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setQrFor(qrFor === c.id ? "" : c.id)}>
+                  {qrFor === c.id ? "Hide QR code" : "Show QR code"}
+                </button>
                 {c.ipfsCid && (
                   <a className="btn btn-ghost btn-sm" href={ipfsUrl(c.ipfsCid)} target="_blank" rel="noreferrer">
                     View file
                   </a>
                 )}
               </div>
+              {qrFor === c.id && <CertificateQR certId={c.id} />}
             </div>
           );
         })

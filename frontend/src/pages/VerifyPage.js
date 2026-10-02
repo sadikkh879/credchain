@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWeb3 } from "../context/Web3Context";
-import { hashFile, formatDate, ipfsUrl, shortAddress } from "../utils";
+import { hashFile, formatDate, ipfsUrl, shortAddress, extractCertId } from "../utils";
+//import QrScanner from "../components/QrScanner";
+const QrScanner = React.lazy(() => import("../components/QrScanner"));
 
 export default function VerifyPage() {
-  const { readContract, hasMetaMask } = useWeb3();
-  const [params] = useSearchParams();
+  const { readContract } = useWeb3();
+  const [params, setParams] = useSearchParams();
+  const [scanning, setScanning] = useState(false);
 
   const [certId, setCertId] = useState(params.get("id") || "");
   const [file, setFile] = useState(null);
@@ -41,10 +44,21 @@ export default function VerifyPage() {
     }
   };
 
-  // Auto-verify when opened through a shared link (?id=CERT-...)
+  // Auto-verify when opened through a shared link or a scanned QR code (?id=CERT-...)
   useEffect(() => {
-    if (params.get("id") && readContract) verify(params.get("id"));
-  }, [readContract]);
+    const id = params.get("id");
+    if (id && readContract) {
+      setCertId(id);
+      verify(id);
+    }
+  }, [readContract, params]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A scanned QR code holds the full verification link; keep only the certificate ID
+  const handleScan = useCallback((text) => {
+    setScanning(false);
+    const id = extractCertId(text);
+    if (id) setParams({ id });
+  }, [setParams]);
 
   const cert = result?.cert;
   const revoked = cert?.isRevoked;
@@ -56,18 +70,10 @@ export default function VerifyPage() {
       <section className="hero">
         <h1>Verify a freelancer's certificate</h1>
         <p>
-          Enter the certificate ID you received from a freelancer. The record is checked directly
-          against the Ethereum blockchain — no account needed.
+          Scan the QR code on the certificate or enter its ID. The record is checked directly
+          against the Ethereum blockchain — no account or wallet needed.
         </p>
       </section>
-
-      {!hasMetaMask && (
-        <div className="alert alert-warn">
-          A browser wallet (MetaMask) is required to read from the blockchain. Install it from{" "}
-          <a href="https://metamask.io" target="_blank" rel="noreferrer">metamask.io</a> — you do
-          not need to create an account or hold any funds to verify.
-        </div>
-      )}
 
       <div className="card">
         <div className="field">
@@ -86,10 +92,21 @@ export default function VerifyPage() {
           <input id="certFile" type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files[0] || null)} />
         </div>
 
-        <button className="btn btn-primary" onClick={() => verify(certId)} disabled={status === "loading" || !readContract}>
-          {status === "loading" ? "Checking blockchain…" : "Verify certificate"}
-        </button>
+        <div className="cert-actions">
+          <button className="btn btn-primary" onClick={() => verify(certId)} disabled={status === "loading" || !readContract}>
+            {status === "loading" ? "Checking blockchain…" : "Verify certificate"}
+          </button>
+          <button className="btn btn-ghost" onClick={() => setScanning(true)} disabled={scanning}>
+            Scan QR code
+          </button>
+        </div>
       </div>
+
+      {scanning && (
+  <React.Suspense fallback={<p className="muted">Opening camera…</p>}>
+    <QrScanner onResult={handleScan} onClose={() => setScanning(false)} />
+  </React.Suspense>
+)}
 
       {status === "notfound" && (
         <div className="alert alert-error">

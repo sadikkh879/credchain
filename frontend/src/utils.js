@@ -24,3 +24,20 @@ export function formatDate(unixSeconds) {
 export function ipfsUrl(cid) {
   return cid ? `https://gateway.pinata.cloud/ipfs/${cid}` : null;
 }
+
+// Public verification link for a certificate; this is what the QR code encodes
+export function verifyUrl(certId) {
+  return `${window.location.origin}/?id=${encodeURIComponent(certId.trim())}`;
+}
+
+// Accepts either a full verification link (from a QR code) or a bare certificate ID
+export function extractCertId(text) {
+  const raw = (text || "").trim();
+  try {
+    const id = new URL(raw).searchParams.get("id");
+    if (id) return id.trim();
+  } catch {
+    // not a URL, treat as a plain ID
+  }
+  return raw;
+}
