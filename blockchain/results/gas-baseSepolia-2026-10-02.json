@@ -1,0 +1,185 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "date": "2026-10-02T21:35:57.645Z",
+  "contract": "0x614dC046cA7Ed22bfC7d4b4FE18f741662140712",
+  "ethUsd": 2600,
+  "baseMainnetGasPriceWei": "6000000",
+  "ethMainnetGasPriceWei": "98771631",
+  "rows": [
+    {
+      "label": "Contract deployment",
+      "hash": "0x3892cccd5d443672145bba38022b26f3f1834bdd01485ceb2d4fa30aab5dc158",
+      "gasUsed": "1748016",
+      "gasPrice": "6000000",
+      "l2Fee": "10488096000000",
+      "l1Fee": "230326649942",
+      "baseTotal": "10528160431016",
+      "baseL1": "40064431016",
+      "ethTotal": "172654391334096"
+    },
+    {
+      "label": "registerInstitute",
+      "hash": "0xe20c5b465163a72ffcc5e7c4a066588930f499a1f28d43b6acb5ec42f7a325e3",
+      "gasUsed": "162526",
+      "gasPrice": "6000000",
+      "l2Fee": "975156000000",
+      "l1Fee": "8792957265",
+      "baseTotal": "976576127940",
+      "baseL1": "1420127940",
+      "ethTotal": "16052958099906"
+    },
+    {
+      "label": "approveInstitute",
+      "hash": "0xb4e6666f2dfea167bf25d64e48f38d2d5faeecdcadbf8d1342daf763bca1dd12",
+      "gasUsed": "30795",
+      "gasPrice": "6000000",
+      "l2Fee": "184770000000",
+      "l1Fee": "12298792116",
+      "baseTotal": "185810955672",
+      "baseL1": "1040955672",
+      "ethTotal": "3041672376645"
+    },
+    {
+      "label": "issueCertificate (first for a wallet)",
+      "hash": "0x9a3fd181688080087be1edf887743e24336b1ed52f28222f5b53de37f0411470",
+      "gasUsed": "379448",
+      "gasPrice": "6000000",
+      "l2Fee": "2276688000000",
+      "l1Fee": "15084249943",
+      "baseTotal": "2279518758201",
+      "baseL1": "2830758201",
+      "ethTotal": "37478697839688"
+    },
+    {
+      "label": "issueCertificate (subsequent, mean of 10)",
+      "gasUsed": "342135",
+      "l2Fee": "2052814800000",
+      "l1Fee": "14258256598",
+      "baseTotal": "2055648419846",
+      "baseL1": "2833619846",
+      "ethTotal": "33793310989489"
+    },
+    {
+      "label": "revokeCertificate",
+      "hash": "0x4ddffbbef2b8526419fcb3733f544b8434fc5eca2d0565d140328695d111c510",
+      "gasUsed": "40418",
+      "gasPrice": "6000000",
+      "l2Fee": "242508000000",
+      "l1Fee": "5978850950",
+      "baseTotal": "243548955672",
+      "baseL1": "1040955672",
+      "ethTotal": "3992151781758"
+    },
+    {
+      "label": "issueCertificate #2",
+      "hash": "0x4f20f896c53b82307da4a4bcfe9ab83aeb61546ad3c20a574300ff8515c4a02e",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "17101305611",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #3",
+      "hash": "0xa094edb6b288835ef4f037bc076c1de937c7f6ebc2cb9c0e25fce02545b30ba5",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "17109196726",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #4",
+      "hash": "0x7d6b12147e13891da8ff8289f2ad125219871a4c769be6b1c992cd8d64a5a4e9",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "6779028225",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #5",
+      "hash": "0x8abb9ff2f30b4904340d8b8b72e22b1b61eb3674eb5a6f44e1da259b57de131e",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "8124352495",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #6",
+      "hash": "0x5d70a15fe5c610d507b0e6f4f6f30c94490b447cdfccf79c7ffc1c0f2f2ea844",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "15475588684",
+      "baseTotal": "2055644050607",
+      "baseL1": "2822050607",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #7",
+      "hash": "0x4fce372d6c9374715af44b4f426227b2bc6db435483adc57d7d5597741a0cd8d",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "16158765436",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #8",
+      "hash": "0x1e3b612bb12fbf24f1a18ccd41eaba2ec37157ccdc4ae3942603f05df4e8f913",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "17859210435",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #9",
+      "hash": "0xc81c172d7c87fcf1a362af0d45e2615b952032037872e35a20d1eb5bb1decb56",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "11757613675",
+      "baseTotal": "2055652758201",
+      "baseL1": "2830758201",
+      "ethTotal": "33793429515447"
+    },
+    {
+      "label": "issueCertificate #10",
+      "hash": "0xae80251fefdc06bb547a8c606523ef6443597b3a1e68cdc33be3174084a20628",
+      "gasUsed": "342125",
+      "gasPrice": "6000000",
+      "l2Fee": "2052750000000",
+      "l1Fee": "16058739260",
+      "baseTotal": "2055563343013",
+      "baseL1": "2813343013",
+      "ethTotal": "33792244255875"
+    },
+    {
+      "label": "issueCertificate #11",
+      "hash": "0x4c7a94dfe872dbeeb768f41eb11665df677a2a4a1e7ca114a91cc8648fffd64d",
+      "gasUsed": "342137",
+      "gasPrice": "6000000",
+      "l2Fee": "2052822000000",
+      "l1Fee": "16158765436",
+      "baseTotal": "2055707497437",
+      "baseL1": "2885497437",
+      "ethTotal": "33793429515447"
+    }
+  ]
+}
